@@ -1,7 +1,7 @@
 # AWS Security Specialist - Study Guide
 
 <figure>
-  <img src="./src/images/aws_cc_badge.png" alt="AWS - Security Specialty" width=200>
+  <img src="https://images.credly.com/images/53acdae5-d69f-4dda-b650-d02ed7a50dd7/image.png" alt="AWS - Security Specialty" width=200>
   <figcaption><center>AWS Certified Security - Specialty<br><i>Image source: <a href="https://www.credly.com/org/amazon-web-services/badge/aws-certified-security-specialty">Credly.com</a></i></center></figcaption>
 </figure>
 
