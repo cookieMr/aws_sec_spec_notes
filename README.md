@@ -17,7 +17,7 @@ Notes in this repository are compiled into a highly readable, searchable online 
 
 ### e-book
 
-If you preffer the offline mode you can download [epub](https://github.com/cookieMr/aws_sec_spec_notes/releases/download/latest/AWS.Security.Specialty.Study.Guide.2026.epub) file.
+If you preffer the offline mode you can download [epub](https://github.com/cookieMr/aws_sec_spec_notes/releases/download/latest/AWS.Security.Specialty.-.Study.Guide.2026.epub) file.
 
 ## Building Locally
 
