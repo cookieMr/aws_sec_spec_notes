@@ -1,8 +1,7 @@
 # AWS Security Specialty - Study Guide
 
 - [Introduction](../README.md)
-
-- Identity & Access Management (IAM)
+<!-- - Identity & Access Management (IAM)
   - AWS IAM
   - AWS STS (Security Token Service)
   - AWS Organizations & SCPs
@@ -40,4 +39,4 @@
 - Management & Governance
   - AWS Artifact
   - AWS Audit Manager
-  - AWS CloudFormation
+  - AWS CloudFormation -->
