@@ -1,0 +1,10 @@
+[book]
+authors = ["CookieMr"]
+language = "en"
+src = "src"
+title = "AWS Security Specialty - Study Guide 2026"
+
+[output.html]
+additional-css = ["custom.css"]
+
+[output.epub]
