@@ -4,8 +4,8 @@
 - [Identity & Access Management (IAM)](./iam_group.md)
   - [AWS IAM](./iam.md)
   - [AWS STS](./sts.md)
-<!--  - AWS Organizations & SCPs
-  - AWS IAM Identity Center
+  - [AWS Organizations & SCPs](./org_scp.md)
+<!--  - AWS IAM Identity Center
   - Amazon Cognito
   - AWS Directory Service
 - Detection, Logging, & Monitoring
