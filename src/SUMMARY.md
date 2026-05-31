@@ -3,8 +3,8 @@
 - [Introduction](../README.md)
 - [Identity & Access Management (IAM)](./iam_group.md)
   - [AWS IAM](./iam.md)
-<!--   - AWS STS (Security Token Service)
-  - AWS Organizations & SCPs
+  - [AWS STS](./sts.md)
+<!--  - AWS Organizations & SCPs
   - AWS IAM Identity Center
   - Amazon Cognito
   - AWS Directory Service

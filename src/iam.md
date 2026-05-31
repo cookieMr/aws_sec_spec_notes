@@ -1,8 +1,8 @@
 # AWS IAM
 
 <figure>
-  <img src="./images/Arch_AWS-IAM-Identity-Center_64@5x.png" alt="AWS IAM Icon" width=200>
-  <figcaption><center>AWS IAM<br><i>Image source: AWS Documentation</i></center></figcaption>
+  <img src="./images/iam.png" alt="AWS IAM Icon" width=200>
+  <figcaption><center>AWS IAM<br><i>Image source: <a href="https://vecta.io/symbols/23/aws-security-identity-compliance/11/iam">Vecta.io</a></i></center></figcaption>
 </figure>
 
 **Overview**: IAM is the foundation of AWS security. It controls who can do what to which resources. The exam heavily tests layered policy questions — you must understand how identity-based policies, resource-based policies, permission boundaries, session policies, and SCPs interact.
