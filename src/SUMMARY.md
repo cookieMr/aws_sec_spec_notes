@@ -1,9 +1,9 @@
 # AWS Security Specialty - Study Guide
 
 - [Introduction](../README.md)
-<!-- - Identity & Access Management (IAM)
-  - AWS IAM
-  - AWS STS (Security Token Service)
+- [Identity & Access Management (IAM)](./iam_group.md)
+  - [AWS IAM](./iam.md)
+<!--   - AWS STS (Security Token Service)
   - AWS Organizations & SCPs
   - AWS IAM Identity Center
   - Amazon Cognito
