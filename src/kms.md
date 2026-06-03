@@ -241,7 +241,55 @@ KMS keys can be used across accounts in two ways:
 | **CloudTrail**      | Encrypt log files (SSE-KMS on S3)                                          |
 | **CloudWatch Logs** | Encrypt log group data                                                     |
 
-## 13. KMS vs CloudHSM
+## 13. AWS Nitro Enclaves
+
+### 13.1. Overview
+
+AWS Nitro Enclaves provides **isolated, hardened execution environments** (enclaves) within EC2 instances. Enclaves have no persistent storage, no interactive access, and no external networking — they communicate with the parent instance only via a **VSOCK** channel. This makes them ideal for processing highly sensitive data (PII, financial records, cryptographic key generation) where even the instance administrator should not have access.
+
+### 13.2. KMS Integration — Key Attestation
+
+- The enclave can request KMS to perform `GenerateRandom`, `Encrypt`, `Decrypt`, `Sign`, `Verify` via the **Nitro Enclaves SDK** (which wraps the KMS API)
+- KMS only releases keys or performs operations if the enclave passes **attestation** — the enclave provides its **PCR (Platform Configuration Register) hash** as proof of its identity
+- The key policy uses the `kms:RecipientAttestation` condition key to lock access to a specific enclave measurement
+
+### 13.3. Key Policy for Enclave Access
+
+```json
+{
+  "Condition": {
+    "ArnEquals": {
+      "kms:RecipientAttestation": "arn:aws:kms:us-east-1:123456789012:key/mrk-abc123"
+    }
+  }
+}
+```
+
+- The `kms:RecipientAttestation` condition ensures the key is only released to an enclave that produces the expected PCR hash
+- Without this condition, any process on the parent instance with IAM permissions could call KMS
+
+### 13.4. Use Cases
+
+| Use Case                       | Description                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| **Secure data processing**     | Process PII, financial data, or PHI in an isolated environment           |
+| **Cryptographic key isolation**| Generate and use keys that even the instance admin cannot extract         |
+| **Multi-party computation**    | Multiple parties contribute data — only the enclave sees plaintext       |
+| **Code integrity verification**| Enclave's PCR hash proves exactly what code is running                    |
+
+### 13.5. Key Exam Points
+
+- Enclaves have **no persistent storage** and **no network access** — they are designed to minimize attack surface
+- Parent instance cannot read enclave memory — enforced by the **Nitro Hypervisor**
+- Attestation is based on **PCR measurements** captured during enclave boot — any code change produces a different hash
+- The enclave's IAM role is assumed by the parent instance — the enclave itself has no IAM credentials
+- Uses **`kms:RecipientAttestation`** condition key (not `kms:ViaService`) in key policies
+- Supports KMS operations: `GenerateRandom`, `Encrypt`, `Decrypt`, `Sign`, `Verify`
+- **Not** supported in all instance types — requires **Nitro-based** instances (most current generation)
+
+**Exam scenario**: An application on EC2 needs to decrypt sensitive data, but even the system administrator should not be able to access the plaintext → use **AWS Nitro Enclaves** with a KMS key policy condition on `kms:RecipientAttestation`. The enclave attests its identity to KMS, which releases the key only to the approved enclave image.
+
+## 14. KMS vs CloudHSM
 
 | Feature         | AWS KMS                          | AWS CloudHSM                                   |
 | --------------- | -------------------------------- | ---------------------------------------------- |
@@ -254,7 +302,7 @@ KMS keys can be used across accounts in two ways:
 
 **Exam tip**: KMS for almost everything. CloudHSM only when you need direct control of the HSM, FIPS 140-2 Level 3, or PKCS#11/JCE interface for custom applications.
 
-## 14. Security Best Practices
+## 15. Security Best Practices
 
 - **Use automatic key rotation** for customer managed CMKs
 - **Use encryption context** to bind key usage to specific data
@@ -267,7 +315,7 @@ KMS keys can be used across accounts in two ways:
 - **Use `kms:EncryptionContextKeys` condition** to enforce encryption context requirements
 - **Separate keys per environment** (dev, test, prod) and per application
 
-## 15. Exam Tips
+## 16. Exam Tips
 
 1. **KMS encrypts up to 4 KB directly** — for larger data, use envelope encryption with GenerateDataKey.
 
@@ -304,3 +352,5 @@ KMS keys can be used across accounts in two ways:
 17. **KMS key ARN format**: `arn:aws:kms:<region>:<account>:key/<key-id>`. Always use the full key ARN in IAM policies, not key ID.
 
 18. **Symmetric keys have ID format**: `mrk-` (multi-region) or `1234abcd-12ab-34cd-56ef-1234567890ab`.
+
+19. **Nitro Enclaves + KMS**: Enclaves use `kms:RecipientAttestation` condition key for attestation. No persistent storage, no network — communicate via VSOCK. The PCR hash identifies the enclave image.
