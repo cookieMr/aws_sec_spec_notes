@@ -156,6 +156,17 @@ For poll-based sources, the **execution role** needs:
 - Allows Lambda functions in a VPC to invoke other Lambda functions or manage Lambda resources without NAT Gateway
 - Bucket policy-style condition keys: `aws:SourceVpce` and `aws:SourceVpc`
 
+### 4.5. EFS for Lambda
+
+- Lambda functions in a VPC can mount an **Amazon EFS file system** for persistent, shared storage
+- Mounted at a configurable path (e.g., `/mnt/efs`) — persists across invocations and execution environment re-use
+- The execution role needs `elasticfilesystem:ClientMount`, `elasticfilesystem:ClientWrite`, `elasticfilesystem:ClientRootAccess`
+- EFS is accessed via **mount targets** in each subnet — the Lambda function must be in the same VPC/subnets
+- Security is enforced via **EFS file system policies** and **security groups** on the mount targets
+- Use cases: sharing data across concurrent function invocations, storing large artifacts, ML model files
+
+**Exam scenario**: A Lambda function needs to access a shared dataset that is too large for `/tmp` and must persist across invocations → attach the function to a VPC and mount an **EFS file system**. The execution role needs `elasticfilesystem:ClientMount`.
+
 ## 5. Lambda Environment Variables
 
 ### 5.1. Encryption
@@ -370,27 +381,71 @@ For poll-based sources, the **execution role** needs:
 
 **Exam scenario**: A Lambda function processes events from S3. Processing fails, and after 2 retries, the event is lost → configure a **dead letter queue** (or on-failure destination) to capture failed events for reprocessing.
 
-## 14. Lambda Best Practices for Security
+## 14. Lambda Ephemeral Storage (/tmp)
 
-| Practice                                                 | Description                                                    |
-| -------------------------------------------------------- | -------------------------------------------------------------- |
-| **Use least-privilege execution roles**                  | Grant only the specific permissions the function needs         |
-| **Do not hardcode secrets**                              | Use Secrets Manager or Parameter Store at runtime              |
-| **Encrypt environment variables**                        | Use a customer managed KMS key for sensitive configuration     |
-| **Use Lambda layers for shared code**                    | Centrally manage and audit shared libraries                    |
-| **Enable code signing**                                  | Ensure only trusted code is deployed                           |
-| **Use reserved concurrency**                             | Prevent critical functions from being throttled                |
-| **Monitor with CloudWatch Logs + Metrics**               | Detect errors, throttles, and unexpected behavior              |
-| **Use VPC endpoints for AWS services**                   | Keep Lambda-to-AWS traffic within the AWS network              |
-| **Use AWS X-Ray for tracing**                            | Monitor end-to-end request flow and identify security issues   |
-| **Set function timeout appropriately**                   | Avoid long-running functions that could be exploited           |
-| **Use resource-based policies for cross-account invoke** | Instead of sharing IAM roles                                   |
-| **Validate and sanitize all inputs**                     | Lambda is exposed to untrusted input via API Gateway, S3, etc. |
-| **Tag Lambda functions**                                 | Use tags for access control and cost allocation                |
-| **Enable Lambda@Edge for edge security**                 | Add security headers, authenticate at the edge                 |
-| **Use CloudFormation or SAM for deployment**             | Infrastructure as code for security-critical functions         |
+### 14.1. Overview
 
-## 15. Common Exam Scenarios
+- Every Lambda function gets a configurable **ephemeral storage** volume mounted at `/tmp`
+- **Default size**: 512 MB
+- **Maximum size**: 10,240 MB (10 GB)
+- Storage is **auto-encrypted at rest** with an AWS managed key — no KMS configuration needed
+- `/tmp` is shared across invocations within the same **execution environment** (warm start) — sensitive data from one invocation may be visible to the next
+- Data in `/tmp` is not guaranteed to persist — the execution environment is recycled after periods of inactivity
+
+### 14.2. Security Implications
+
+- Lambda **does not automatically clear `/tmp`** between invocations on a warm start
+- If the function processes sensitive data (PII, credentials, decrypted payloads), data written to `/tmp` may be accessible to subsequent invocations
+- The execution environment is isolated at the hypervisor level — other AWS customers cannot access it, but the same function's subsequent invocations can
+- Best practice: **explicitly clean up sensitive data** from `/tmp` after processing
+- For persistent, shared, or large-volume storage, use **EFS** instead of `/tmp`
+
+**Exam scenario**: A Lambda function processes PII and writes intermediate results to `/tmp`. The security team is concerned about data leakage between invocations → the function should **explicitly delete or overwrite sensitive data** in `/tmp` after processing, since the execution environment may be re-used on warm starts.
+
+## 15. Lambda Container Images
+
+### 15.1. Overview
+
+- Lambda functions can be packaged as **container images** (up to 10 GB) instead of .zip deployment packages
+- Images are stored in **Amazon ECR** (Elastic Container Registry)
+- Supports all Lambda capabilities (VPC, EFS, layers, Function URLs, etc.)
+- Base images are provided by AWS for Python, Node.js, Java, Go, .NET, and Ruby
+- Custom base images are also supported (must implement the Lambda Runtime API)
+
+### 15.2. Security Implications
+
+- Container images are subject to **ECR image scanning** (Basic or Enhanced with Inspector) — detects vulnerabilities in OS and application packages
+- **Enhanced scanning** (Amazon Inspector) provides CIS benchmarks, network reachability, and continuous scanning
+- Image signing with **AWS Signer** ensures only trusted container images are deployed
+- Images can be encrypted at rest with KMS (using ECR's KMS encryption)
+- The Lambda execution role does **not** need ECR permissions — the Lambda service pulls the image on your behalf using your ECR permissions
+- The IAM principal creating/updating the function needs `ecr:GetDownloadUrlForLayer`, `ecr:BatchGetImage`, and `ecr:BatchCheckLayerAvailability`
+- Container image deployment has a larger attack surface than .zip — scan regularly for vulnerabilities and use specific image tags (not `latest`)
+
+**Exam scenario**: An organization deploys Lambda functions using container images and needs to ensure all images are free of critical vulnerabilities before deployment → enable **ECR Enhanced Scanning with Amazon Inspector** to automatically scan images on push and reject deployments with critical findings.
+
+## 16. Lambda Best Practices for Security
+
+| Practice                                                 | Description                                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Use least-privilege execution roles**                  | Grant only the specific permissions the function needs                                      |
+| **Do not hardcode secrets**                              | Use Secrets Manager or Parameter Store at runtime                                           |
+| **Encrypt environment variables**                        | Use a customer managed KMS key for sensitive configuration                                  |
+| **Use Lambda layers for shared code**                    | Centrally manage and audit shared libraries                                                 |
+| **Enable code signing**                                  | Ensure only trusted code is deployed                                                        |
+| **Use reserved concurrency**                             | Prevent critical functions from being throttled                                             |
+| **Monitor with CloudWatch Logs + Metrics**               | Detect errors, throttles, and unexpected behavior                                           |
+| **Use VPC endpoints for AWS services**                   | Keep Lambda-to-AWS traffic within the AWS network                                           |
+| **Use AWS X-Ray for tracing**                            | Monitor end-to-end request flow and identify security issues                                |
+| **Set function timeout appropriately**                   | Avoid long-running functions that could be exploited                                        |
+| **Use resource-based policies for cross-account invoke** | Instead of sharing IAM roles                                                                |
+| **Validate and sanitize all inputs**                     | Lambda is exposed to untrusted input via API Gateway, S3, etc.                              |
+| **Tag Lambda functions**                                 | Use tags for access control and cost allocation                                             |
+| **Enable Lambda@Edge for edge security**                 | Add security headers, authenticate at the edge                                              |
+| **Use CloudFormation or SAM for deployment**             | Infrastructure as code for security-critical functions                                      |
+| **Avoid recursive Lambda invocations**                   | Ensure S3-triggered functions do not write back to the same bucket, creating infinite loops |
+
+## 17. Common Exam Scenarios
 
 1. **Incident response automation**: A security alert triggers a Lambda function that isolates an EC2 instance, revokes IAM keys, or updates security groups → the **execution role** must have the specific permissions (e.g., `ec2:StopInstances`, `iam:UpdateAccessKey`).
 
@@ -412,7 +467,7 @@ For poll-based sources, the **execution role** needs:
 
 10. **Lambda code signing**: Prevent unauthorized code from being deployed → use **Lambda code signing** with AWS Signer.
 
-## 16. Exam Tips
+## 18. Exam Tips
 
 1. **Execution role is everything**: The Lambda execution role determines what the function can access. Exam scenarios often test which IAM permissions the execution role needs.
 
@@ -453,3 +508,5 @@ For poll-based sources, the **execution role** needs:
 19. **Lambda environment re-use**: The execution environment is re-used for subsequent invocations — cache connections and SDK clients outside the handler.
 
 20. **Lambda in an organization**: Use **resource-based policies** for cross-account layer sharing. Use **SCPs** to enforce Lambda security controls (e.g., require VPC config, require code signing).
+
+21. **Recursive invocation risk**: An S3-triggered Lambda that writes back to the same S3 bucket causes an infinite loop. Use separate input/output buckets or prefix-based S3 event filters to avoid recursion.

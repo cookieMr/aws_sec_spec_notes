@@ -35,18 +35,32 @@
 
 ### 1.3. State Types
 
-| State        | Purpose                                                                    |
-| ------------ | -------------------------------------------------------------------------- |
-| **Task**     | Perform a unit of work (invoke Lambda, run ECS task, publish to SNS, etc.) |
-| **Choice**   | Branch based on input data (conditionals)                                  |
-| **Parallel** | Execute multiple branches concurrently                                     |
-| **Map**      | Iterate over a list of items, executing steps for each                     |
-| **Wait**     | Delay for a specified time or until a timestamp                            |
-| **Pass**     | Pass input to output, optionally inject data                               |
-| **Fail**     | Stop execution and mark as failed                                          |
-| **Succeed**  | Stop execution and mark as succeeded                                       |
+| State        | Purpose                                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **Task**     | Perform a unit of work (invoke Lambda, run ECS task, publish to SNS, etc.)                                        |
+| **Choice**   | Branch based on input data (conditionals)                                                                         |
+| **Parallel** | Execute multiple branches concurrently                                                                            |
+| **Map**      | Iterate over a list of items, executing steps for each (includes **Distributed Map** for large-scale concurrency) |
 
-**Exam tip**: **Parallel** and **Map** states are heavily used in security playbooks — e.g., collecting forensic data from multiple instances in parallel (Parallel), or processing a list of compromised IAM keys (Map).
+### 1.4. Distributed Map
+
+- **Distributed Map** is an execution mode for the Map state that supports **large-scale parallel processing**
+- Unlike the standard (inline) Map state that runs within a single execution, Distributed Map creates **child workflow executions** for each item
+- Key differences:
+
+| Feature               | Standard (Inline) Map    | Distributed Map                   |
+| --------------------- | ------------------------ | --------------------------------- |
+| **Concurrency**       | Limited (40 concurrent)  | Up to 10,000 concurrent           |
+| **Input size**        | 256 KB (payload limit)   | Unlimited (items from S3)         |
+| **Execution history** | Within parent execution  | Separate execution per item       |
+| **Use case**          | Small lists (<100 items) | Large-scale processing (millions) |
+| **Item source**       | Payload only             | Payload or S3 (JSONLines, CSV)    |
+
+- Use case: Processing **millions of GuardDuty findings** or **thousands of log files** in parallel
+- Items can be read directly from **S3** — no need to pass them in the execution payload
+- Each child execution has its own execution ID and history for audit trails
+
+**Exam scenario**: A security team needs to process 500,000 GuardDuty findings in parallel to enrich and archive each one → use **Distributed Map** in Step Functions to create child workflow executions for each finding, with the finding list stored in S3.
 
 ## 2. Service Integrations
 
@@ -62,19 +76,20 @@ Step Functions integrates with over 200 AWS services using three patterns:
 
 ### 2.2. Key Integrations for Security Automation
 
-| Service                      | Pattern           | Security Use Case                                     |
-| ---------------------------- | ----------------- | ----------------------------------------------------- |
-| **Lambda**                   | Request Response  | Execute individual security actions (isolate, revoke) |
-| **SNS**                      | Request Response  | Send notification to security team                    |
-| **SQS**                      | Request Response  | Queue security events for downstream processing       |
-| **ECS / Fargate**            | Run a Job (.sync) | Run forensic analysis container                       |
-| **Glue**                     | Run a Job (.sync) | Run data analysis on security logs                    |
-| **SageMaker**                | Request Response  | Invoke ML model for anomaly detection                 |
-| **DynamoDB**                 | Request Response  | Store incident data, update case management           |
-| **EventBridge**              | Request Response  | Emit events to trigger further automation             |
-| **CodeBuild / CodePipeline** | Run a Job (.sync) | Deploy security tooling or build forensic images      |
-| **ECS RunTask**              | Run a Job (.sync) | Run a containerized security scanning tool            |
-| **S3 PutObject**             | Request Response  | Store forensic evidence, logs, artifacts              |
+| Service                      | Pattern           | Security Use Case                                                                                                             |
+| ---------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Lambda**                   | Request Response  | Execute individual security actions (isolate, revoke)                                                                         |
+| **SNS**                      | Request Response  | Send notification to security team                                                                                            |
+| **SQS**                      | Request Response  | Queue security events for downstream processing                                                                               |
+| **ECS / Fargate**            | Run a Job (.sync) | Run forensic analysis container                                                                                               |
+| **Glue**                     | Run a Job (.sync) | Run data analysis on security logs                                                                                            |
+| **SageMaker**                | Request Response  | Invoke ML model for anomaly detection                                                                                         |
+| **DynamoDB**                 | Request Response  | Store incident data, update case management                                                                                   |
+| **EventBridge**              | Request Response  | Emit events to trigger further automation                                                                                     |
+| **CodeBuild / CodePipeline** | Run a Job (.sync) | Deploy security tooling or build forensic images                                                                              |
+| **ECS RunTask**              | Run a Job (.sync) | Run a containerized security scanning tool                                                                                    |
+| **S3 PutObject**             | Request Response  | Store forensic evidence, logs, artifacts                                                                                      |
+| **SSM Automation**           | Run a Job (.sync) | Execute SSM Automation runbooks for instance-level remediation (e.g., run commands, patch, isolate) without a Lambda function |
 
 ### 2.3. Wait for Callback (Human Approval)
 

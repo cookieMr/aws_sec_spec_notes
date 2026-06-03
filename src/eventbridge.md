@@ -206,6 +206,18 @@ Account A (Member)  ──Event──→ Account B (Security Central)
 
 **Exam scenario**: A large organization with hundreds of AWS accounts needs to centralize security events without manually configuring each account → use **EventBridge Organization event bus** (or AWS Organizations + delegated admin for Security Hub/GuardDuty which natively aggregate).
 
+### 4.5. Global Endpoints
+
+- **EventBridge Global Endpoints** provide cross-region event bus replication for disaster recovery and multi-region architectures
+- An endpoint routes events to a **primary** region's event bus; if the primary is unavailable, events are routed to a **secondary** region
+- Replication health is monitored via **health checks** — failover is automatic
+- Use case: Security monitoring across Regions — if the primary security account's EventBridge in us-east-1 fails, events are routed to us-west-2
+- Global endpoints are **regional resources** — you create them in each Region that acts as primary or secondary
+- Works with all event bus types (default, custom, partner)
+- Failover is **eventually consistent** — some events may be duplicated during failover
+
+**Exam scenario**: A security team needs to ensure GuardDuty findings are processed even if the primary region's EventBridge bus becomes unavailable → configure an **EventBridge Global Endpoint** with a primary and secondary region. If the primary fails, events are automatically routed to the secondary region.
+
 ## 5. EventBridge Scheduler
 
 ### 5.1. Overview
