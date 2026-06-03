@@ -15,6 +15,7 @@
   - [AWS Config](./config.md)
   - [Amazon Inspector](./inspector.md)
   - [Amazon Macie](./macie.md)
+  - [AWS Security Hub](./security_hub.md)
   - [Amazon Detective](./detective.md)
   - [Amazon Security Lake](./sec_lake.md)
   - [Amazon Athena](./athena.md)
