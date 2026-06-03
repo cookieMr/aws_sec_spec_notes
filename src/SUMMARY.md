@@ -5,38 +5,38 @@
   - [AWS IAM](./iam.md)
   - [AWS STS](./sts.md)
   - [AWS Organizations & SCPs](./org_scp.md)
-<!--  - AWS IAM Identity Center
-  - Amazon Cognito
-  - AWS Directory Service
-- Detection, Logging, & Monitoring
-  - AWS CloudTrail
-  - Amazon CloudWatch & CloudWatch Logs
-  - Amazon GuardDuty
-  - AWS Config
-  - Amazon Inspector
-  - Amazon Macie
-  - Amazon Detective
-  - Amazon Security Lake
-  - Amazon Athena
-- Infrastructure Security & Network Defense
-  - Amazon VPC
-  - AWS WAF (Web Application Firewall)
-  - AWS Shield & Shield Advanced
-  - AWS Firewall Manager
-  - AWS Network Firewall
-  - AWS Systems Manager (SSM)
-- Data Protection & Encryption
-  - AWS KMS (Key Management Service)
-  - AWS CloudHSM
-  - AWS Certificate Manager (ACM) & Private CA
-  - Amazon S3 Security Features
-  - AWS Secrets Manager
-  - AWS Systems Manager Parameter Store
-- Incident Response & Automation
-  - AWS Lambda
-  - Amazon EventBridge (CloudWatch Events)
-  - AWS Step Functions
-- Management & Governance
-  - AWS Artifact
-  - AWS Audit Manager
-  - AWS CloudFormation -->
+  - [AWS IAM Identity Center](./iam_id_center.md)
+  - [Amazon Cognito](./cognito.md)
+  - [AWS Directory Service](./dir_service.md)
+- [Detection, Logging, & Monitoring](./detection_loggin_monitoring.md)
+  - [AWS CloudTrail](./cloud_trail.md)
+  - [Amazon CloudWatch & CloudWatch Logs](./cloud_watch.md)
+  - [Amazon GuardDuty](./guard_duty.md)
+  - [AWS Config](./config.md)
+  - [Amazon Inspector](./inspector.md)
+  - [Amazon Macie](./macie.md)
+  - [Amazon Detective](./detective.md)
+  - [Amazon Security Lake](./sec_lake.md)
+  - [Amazon Athena](./athena.md)
+- [Infrastructure Security & Network Defense](./infra_sec_and_net_defence.md)
+  - [Amazon VPC](./vpc.md)
+  - [AWS WAF (Web Application Firewall)](./waf.md)
+  - [AWS Shield & Shield Advanced](./shield.md)
+  - [AWS Firewall Manager](./firewall.md)
+  - [AWS Network Firewall](./net_firewall.md)
+  - [AWS Systems Manager (SSM)](./ssm.md)
+- [Data Protection & Encryption](./data_protection_and_encryption.md)
+  - [AWS KMS (Key Management Service)](./kms.md)
+  - [AWS CloudHSM](./hsm.md)
+  - [AWS Certificate Manager (ACM) & Private CA](./acm.md)
+  - [Amazon S3 Security Features](./s3_sec.md)
+  - [AWS Secrets Manager](./sec_manager.md)
+  - [AWS Systems Manager Parameter Store](./param_store.md)
+- [Incident Response & Automation](./incident_response_and_automation.md)
+  - [AWS Lambda](./lambda.md)
+  - [Amazon EventBridge (CloudWatch Events)](./eventbridge.md)
+  - [AWS Step Functions](./step_fun.md)
+- [Management & Governance](./mgr_and_gov.md)
+  - [AWS Artifact](./artifact.md)
+  - [AWS Audit Manager](./audit_mgr.md)
+  - [AWS CloudFormation](./cloudformation.md)
