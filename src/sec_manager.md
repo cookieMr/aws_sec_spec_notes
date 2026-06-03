@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears across Data Protection (~18%) and IAM (~20%) domains. The exam tests Secrets Manager primarily via comparison questions with SSM Parameter Store and rotation scenario questions.
 
----
-
 ## 1. Secret Structure
 
 ### 1.1. Secret Components

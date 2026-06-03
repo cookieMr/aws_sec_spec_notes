@@ -11,8 +11,6 @@
 
 **Key relationship**: Parameter Store is part of **AWS Systems Manager (SSM)** — not a standalone service. It is accessed via the SSM API (`ssm:GetParameter`, `ssm:PutParameter`, etc.).
 
----
-
 ## 1. Parameter Tiers
 
 | Feature                    | Standard Tier                 | Advanced Tier                  |

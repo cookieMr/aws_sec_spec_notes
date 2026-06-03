@@ -9,8 +9,6 @@
 
 **Domain weight**: S3 appears across Data Protection (~18%), Infrastructure Security (~17%), Detection & Logging (~18%), and IAM (~20%). It is the single most important service to study for the exam.
 
----
-
 ## 1. S3 Access Control
 
 S3 has four access control mechanisms. Understanding which takes precedence is critical.

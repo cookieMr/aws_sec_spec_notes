@@ -110,6 +110,8 @@ These condition keys work across all AWS services:
 | `aws:TokenIssueTime`         | When temporary credentials were issued                               | Date      |
 | `aws:UserId`                 | The unique ID of the principal (not the friendly name)               | String    |
 | `aws:ViaAWSService`          | True if the request was made by an AWS service on your behalf        | Bool      |
+| `cloudformation:SourceAccount` | The account ID that owns the CloudFormation stack or stack set — prevents confused deputy in cross-account operations | String |
+| `cloudformation:SourceArn`     | The ARN of the CloudFormation stack or stack set — used with `cloudformation:SourceAccount` for confused deputy prevention | Arn    |
 
 > ABAC — _Attribute-Based Access Control_ — granting access based on tags matching between principal and resource (e.g., `aws:PrincipalTag/Department` must equal `aws:ResourceTag/Department`).
 >
@@ -434,6 +436,24 @@ Some AWS services natively support resource-based policies, which grant cross-ac
 - Certificates can be issued by AWS Certificate Manager (ACM) Private CA or by your own certificate authority
 - Use case: On-premises servers, non-AWS cloud workloads, or any workload that cannot use an instance profile
 
+### 15.5. AWS Private Certificate Authority (PCA)
+
+- Fully managed private CA service for creating and managing X.509 certificates
+- Defines a private CA hierarchy (root CA → subordinate CAs) for issuing internal certificates
+- Key integrations:
+  - **IAM Roles Anywhere**: Serves as a trust anchor — certificates from PCA authenticate on-premises workloads to obtain temporary AWS credentials
+  - **ACM**: Issue private certificates for internal-facing resources (ALB, API Gateway, CloudFront, EC2)
+  - **API Gateway mTLS**: Validate client certificates from your private CA for mutual TLS
+  - **AWS IoT**: Manage device certificates at scale
+  - **Code Signing for Lambda**: Sign code with PCA certificates
+- Security controls:
+  - Root CA can be kept offline; subordinate CAs handle daily issuance
+  - Certificate revocation via CRLs or OCSP
+  - All CA operations logged to CloudTrail
+  - IAM policies control who can issue, revoke, and manage certificates
+- **Exam scenario**: Need private certificates for internal apps without managing CA infrastructure → **ACM Private CA**
+- **Exam scenario**: IAM Roles Anywhere needs a trust anchor → **ACM Private CA** as trust anchor or your own external CA
+
 ## 16. ABAC (Attribute-Based Access Control)
 
 ### 16.1. How It Works
@@ -528,7 +548,132 @@ This condition allows access only if the principal's `Project` tag matches the r
 | Identity Policy     | Yes                 | No                | Single IAM user, group, or role | Account administrator           |
 | Resource Policy     | Yes                 | No                | Single AWS resource             | Account administrator           |
 
-## 18. IAM Limits
+## 18. KMS Key Policies and Grants
+
+AWS KMS uses resource-based policies (key policies) to control access to KMS keys. Understanding how key policies interact with IAM policies and grants is critical for the exam.
+
+### 18.1. Key Policy Basics
+
+- Every KMS key has a **key policy** — a resource-based policy attached directly to the key that defines who can use it and how
+- If the key policy allows IAM policies to grant access, then IAM policies in the account can also control access to the key
+- Without a key policy allowing it, IAM policies alone **cannot** grant access to a KMS key
+- **Exam scenario**: A user with full IAM `AdministratorAccess` cannot use a KMS key → check the key policy (it likely does not grant IAM policy-based access)
+
+### 18.2. Key Policy vs IAM Policy
+
+| Configuration | Behavior |
+|---|---|
+| Default key policy | Grants full control to account root user; allows IAM policies to manage access |
+| Custom key policy with IAM access | Explicitly permits IAM policies to grant access in addition to the key policy |
+| Custom key policy without IAM access | Only the principals listed in the key policy can use the key — IAM policies are ignored |
+
+### 18.3. Grants
+
+- Grants are an alternative to key policies for granting KMS key access
+- More restrictive — allow specific operations for specific principals without modifying the key policy
+- Created via the `CreateGrant` API
+- **Use case**: Cross-account access without updating the key policy (the grantee's IAM policy must still allow the KMS action)
+- Grants can be retired by the grantee at any time using `RetireGrant`
+- Key difference: Grants are **operation-specific** and can include constraints (encryption context)
+
+### 18.4. Key Condition Keys
+
+| Condition Key | Purpose |
+|---|---|
+| `kms:ViaService` | Restrict KMS key usage to requests that originate through a specific AWS service (e.g., `s3.amazonaws.com`, `ec2.amazonaws.com`). **Heavily tested** — scope a key to a single service |
+| `kms:CallerAccount` | Restrict key usage to a specific AWS account |
+| `kms:EncryptionContextKeys` | Require specific encryption context keys in the KMS request |
+| `kms:EncryptionContext` | Match the exact encryption context in the request |
+| `kms:ReEncryptOnSameKey` | Restrict re-encryption to the same KMS key |
+| `kms:GrantConstraintType` | Control which constraint types can be included in a grant |
+| `kms:GrantOperations` | Limit which KMS operations a grant can allow |
+| `kms:KeyOrigin` | Restrict based on key material origin (`AWS_KMS`, `EXTERNAL`, or `AWS_CLOUDHSM`) |
+| `kms:ResourceAliases` | Restrict based on aliases attached to the key |
+
+**kms:ViaService example** — restrict a key so it can only be used through S3:
+
+```json
+{
+  "Effect": "Deny",
+  "Action": "kms:*",
+  "Resource": "*",
+  "Condition": {
+    "StringNotEquals": {
+      "kms:ViaService": "s3.amazonaws.com"
+    }
+  }
+}
+```
+
+### 18.5. Cross-Account KMS Access
+
+Two approaches:
+
+1. **Key policy**: Add the external account or principal directly to the key policy
+2. **Grant**: Use `CreateGrant` to allow a principal in another account to use the key (the external principal must also have the corresponding IAM permissions)
+
+Both approaches require that the external account's IAM policies also allow the KMS actions.
+
+## 19. RDS IAM Database Authentication
+
+RDS IAM Database Authentication lets you use IAM roles and short-lived authentication tokens to connect to RDS instances instead of database passwords.
+
+### 19.1. How It Works
+
+- IAM generates a 15-minute authentication token signed with your AWS credentials
+- The token is used as the database password — no passwords stored in application code or Secrets Manager
+- Database access is managed centrally through IAM policies
+
+### 19.2. Supported Databases
+
+| Engine | Support |
+|---|---|
+| Amazon RDS MySQL | Yes |
+| Amazon RDS PostgreSQL | Yes |
+| Amazon RDS MariaDB | Yes |
+| Amazon Aurora MySQL | Yes |
+| Amazon Aurora PostgreSQL | Yes |
+| Amazon RDS SQL Server, Oracle, Db2 | No |
+
+### 19.3. Configuration Requirements
+
+1. Enable **IAM DB Authentication** on the RDS instance
+2. Create a database user with `AWSAuthenticationPlugin` (MySQL/MariaDB) or `rds_iam` (PostgreSQL)
+3. Attach an IAM policy granting `rds-db:connect` to the principal that needs access
+4. Use the AWS SDK or CLI to generate an auth token:
+
+```bash
+aws rds generate-db-auth-token \
+  --hostname mydb.123456789012.us-east-1.rds.amazonaws.com \
+  --port 3306 \
+  --region us-east-1 \
+  --username db_user
+```
+
+5. Connect using the token as the password with SSL/TLS enforced
+
+### 19.4. IAM Policy Example
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "rds-db:connect",
+  "Resource": "arn:aws:rds-db:us-east-1:123456789012:dbuser:db-ABCDEFGHIJKL01234/db_user"
+}
+```
+
+- Resource ARN format: `arn:aws:rds-db:<region>:<account>:dbuser:<resource-id>/<database-user-name>`
+- The **resource ID** is the RDS resource ID (not the DB instance identifier) — find it via `aws rds describe-db-instances`
+
+### 19.5. Exam Scenarios
+
+- **No passwords in code**: Use RDS IAM auth with an EC2 instance profile or Lambda execution role
+- **Centralized DB access control**: Manage database access through IAM instead of per-user DB credentials
+- **15-minute token expiry**: Tokens auto-refresh via the AWS SDK
+- **SSL is mandatory**: IAM DB authentication requires TLS connections
+- **Cross-account access**: Supported — IAM principals in Account B can authenticate to an RDS instance in Account A
+
+## 20. IAM Limits
 
 | Resource                                      | Limit                             |
 | --------------------------------------------- | --------------------------------- |
@@ -541,9 +686,9 @@ This condition allows access only if the principal's `Project` tag matches the r
 | Policy document size (inline for roles/users) | 10,240 bytes                      |
 | Roles an instance profile can contain         | 1                                 |
 
-## 19. Troubleshooting Scenarios
+## 21. Troubleshooting Scenarios
 
-### 19.1. User Gets AccessDenied Despite Having an Allow Policy
+### 21.1. User Gets AccessDenied Despite Having an Allow Policy
 
 - **Check SCPs** — an SCP at the organization level may include a Deny that overrides your Allow
 - **Check permission boundaries** — the action may be allowed by the identity policy but outside the boundary's scope
@@ -551,7 +696,7 @@ This condition allows access only if the principal's `Project` tag matches the r
 - **Check Resource ARN** — the policy might grant access to a different resource than the one being accessed
 - **Check for explicit Deny statements** — there may be a Deny in another identity or resource policy
 
-### 19.2. Cross-Account AssumeRole Fails
+### 21.2. Cross-Account AssumeRole Fails
 
 - Verify the trust policy in the target account allows the source principal
 - Verify the source user or role has `sts:AssumeRole` permission on the target role ARN
@@ -559,22 +704,22 @@ This condition allows access only if the principal's `Project` tag matches the r
 - Check SCPs in either account that might deny `sts:AssumeRole`
 - Verify the role session name is valid
 
-### 19.3. EC2 Instance Cannot Access S3
+### 21.3. EC2 Instance Cannot Access S3
 
 - Verify the EC2 instance has an IAM role attached (via an instance profile)
 - Verify the role's policy grants the required S3 actions
 - Check if there is an S3 bucket policy that denies the access
 - If using an S3 VPC endpoint, verify the endpoint policy allows the access and route tables are configured correctly
 
-### 19.4. Lambda Function Cannot Write to CloudWatch Logs
+### 21.4. Lambda Function Cannot Write to CloudWatch Logs
 
 - Verify the Lambda execution role has `logs:CreateLogGroup`, `logs:CreateLogStream`, and `logs:PutLogEvents`
 - Check the resource ARN — CloudWatch Logs requires specific ARN patterns
 - Verify no permission boundary is blocking the CloudWatch Logs actions
 
-## 20. IAM Best Practices for the Exam
+## 22. IAM Best Practices for the Exam
 
-### 20.1. Least Privilege
+### 22.1. Least Privilege
 
 - Start with the minimum permissions needed and add more only as required
 - Use IAM Access Advisor to identify unused permissions and tighten policies
@@ -582,59 +727,59 @@ This condition allows access only if the principal's `Project` tag matches the r
 - Prefer specific resource ARNs over `"Resource": "*"`
 - Prefer specific action names over `"Action": "s3:*"`
 
-### 20.2. MFA
+### 22.2. MFA
 
 - Require MFA for all human users with AWS access
 - Use the `aws:MultiFactorAuthPresent` condition key in IAM policies to enforce MFA
 - Enable MFA on the root user and store the device in a secure location
 
-### 20.3. Access Keys
+### 22.3. Access Keys
 
 - Rotate access keys regularly (every 90 days is the recommended interval)
 - Prefer IAM roles over long-lived access keys whenever possible (EC2 instance profiles, Lambda execution roles)
 - Deactivate and delete unused access keys
 - Use the IAM credential report to audit access key usage
 
-### 20.4. Root User
+### 22.4. Root User
 
 - Only use the root user for account-level tasks that require it (changing the support plan, closing the account, registering as a seller in the Reserved Instance Marketplace)
 - Enable MFA on the root user
 - Do NOT create access keys for the root user
 - Do NOT use the root user for any daily administration tasks
 
-### 20.5. IAM Groups
+### 22.5. IAM Groups
 
 - Manage permissions through groups rather than attaching policies directly to users
 - Assign users to groups and attach policies to the groups
 - This simplifies permission management and auditing
 
-### 20.6. Password Policy
+### 22.6. Password Policy
 
 - Enforce a strong password policy (minimum length, complexity requirements)
 - Require periodic password rotation
 - Prevent password reuse
 
-### 20.7. Monitoring
+### 22.7. Monitoring
 
 - Use AWS CloudTrail to record all IAM API calls
 - Set up Amazon CloudWatch alarms for significant IAM events (policy changes, role assumption failures)
 - Use IAM Access Analyzer for continuous detection of unintended access
 - Use AWS Config rules to enforce IAM compliance
 
-### 20.8. Cross-Account Best Practices
+### 22.8. Cross-Account Best Practices
 
 - Prefer cross-account roles over creating IAM users in multiple accounts
 - Always use an External ID when giving third-party access to your account
 - Use `aws:SourceOrgID` or `aws:SourceAccount` conditions in trust policies for additional verification
 
-### 20.9. Credential Compromise Incident Response
+### 22.9. Credential Compromise Incident Response
 
 1. Rotate or delete the compromised credentials immediately
 2. Attach the `AWSRevokeOlderSessions` policy to invalidate all existing sessions
 3. Review CloudTrail logs to determine what actions were taken by the compromised credentials
 4. Delete or deactivate access keys if they were the source of the compromise
 
-## 21. Exam Tips Summary
+## 23. Exam Tips Summary
 
 - SCP allows do NOT grant permissions — an identity-based policy is still required
 - SCP deny cannot be overridden by any account administrator

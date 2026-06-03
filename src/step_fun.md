@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears most heavily in Incident Response (~19%). Step Functions is the **orchestrator for security automation** — Lambda handles individual actions, EventBridge routes events, Step Functions coordinates the overall response workflow.
 
----
-
 ## 1. Core Concepts
 
 ### 1.1. State Machines

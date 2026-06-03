@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears across Infrastructure Security (~17%), Detection & Logging (~18%), and Incident Response (~19%). Lambda itself is not a security service, but it is the **primary compute engine for security automation** on AWS.
 
----
-
 ## 1. Lambda Execution Role (IAM Role)
 
 ### 1.1. Purpose

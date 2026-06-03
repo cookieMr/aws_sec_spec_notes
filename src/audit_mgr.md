@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears in Management & Governance. Audit Manager is a **niche service** — typically 0–1 questions on the exam. Questions are straightforward: "Which service automatically collects audit evidence and maps it to compliance controls?"
 
----
-
 ## 1. Core Concepts
 
 ### 1.1. Assessment Frameworks

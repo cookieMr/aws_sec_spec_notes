@@ -11,8 +11,6 @@
 
 **Naming note**: CloudWatch Events is the predecessor. EventBridge is the modern evolution with additional capabilities (cross-account event buses, schema registry, Pipes). The exam may use both names; EventBridge is the current AWS-recommended service.
 
----
-
 ## 1. Core Concepts
 
 ### 1.1. Event Bus

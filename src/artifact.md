@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears in Management & Governance and Data Protection domains. AWS Artifact is a **supporting service** — typically 0–2 questions on the exam. Questions are straightforward: "Where do I find AWS compliance reports?" or "How do I accept a HIPAA BAA with AWS?"
 
----
-
 ## 1. AWS Artifact Reports
 
 ### 1.1. Available Reports

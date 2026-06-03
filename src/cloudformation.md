@@ -9,8 +9,6 @@
 
 **Domain weight**: Appears across Management & Governance and Data Protection domains. CloudFormation is an **enabler for security automation** — typically 1–2 questions focused on secure deployment patterns.
 
----
-
 ## 1. Core Security Concepts
 
 ### 1.1. Stack Policies
