@@ -20,9 +20,43 @@
 
 **Exam scenario**: An EC2 instance is not appearing in the SSM console → check that the **SSM Agent** is installed, running, and has network access to the SSM endpoint (via internet or VPC endpoint).
 
-## 2. Session Manager
+## 2. Hybrid Activations
 
 ### 2.1. Purpose
+
+- **Hybrid Activations** allow on-premises servers to be managed by SSM without joining a domain
+- An activation generates an **activation code** and **activation ID** — the server uses these to register as a managed instance
+- Once registered, on-premises servers support: Session Manager, Patch Manager, Run Command, State Manager, Inventory, and Compliance
+- The activation has a configurable **expiration date** (1-30 days) and **instance limit** (max number of instances that can register)
+- Registered instances appear in the SSM console as **Managed Instances**
+
+### 2.2. Key Requirements
+
+- On-premises server must have the **SSM Agent** installed
+- Server must have **outbound internet access** (HTTPS) or **VPC endpoints** to reach SSM
+- The server does **not** need to be joined to a domain or directory
+- Uses IAM roles and policies defined at the organization or account level
+
+### 2.3. Workflow
+
+1. Create a hybrid activation in the SSM console (generates activation code + ID)
+2. Download and run the registration script on the on-premises server
+3. The script uses the activation code and ID to register the server
+4. SSM Agent starts and connects to the SSM service
+5. The server appears as a managed instance in the SSM console
+
+### 2.4. Use Cases
+
+- Patch on-premises Windows and Linux servers with Patch Manager
+- Use Session Manager for secure remote access without VPN or direct RDP/SSH
+- Run commands across hybrid fleet with Run Command
+- Collect inventory for compliance reporting
+
+**Exam scenario**: A company has on-premises servers that need to be patched using SSM Patch Manager but cannot join the domain → create a **Hybrid Activation** to register them as managed instances.
+
+## 3. Session Manager
+
+### 3.1. Purpose
 
 - Provides secure, audited shell access to EC2 instances and on-premises servers
 - **No SSH needed** — no bastion host, no SSH keys, no security group rules for SSH (port 22)
@@ -31,7 +65,7 @@
 
 **Exam scenario**: A security team wants to eliminate SSH bastion hosts and manage EC2 access through IAM → use **SSM Session Manager** for secure, keyless, audited shell access.
 
-### 2.2. Key Security Features
+### 3.2. Key Security Features
 
 | Feature              | Benefit                                                                      |
 | -------------------- | ---------------------------------------------------------------------------- |
@@ -42,7 +76,7 @@
 | **Session logs**     | Session activity can be recorded to CloudWatch Logs or S3                    |
 | **Port forwarding**  | Secure tunnel for accessing applications on instances without exposing ports |
 
-### 2.3. How It Works
+### 3.3. How It Works
 
 1. User initiates a session via AWS Console, CLI, or SDK
 2. SSM authenticates the user via IAM
@@ -50,22 +84,22 @@
 4. SSM Agent establishes a bidirectional connection over HTTPS
 5. User gets a shell on the instance — no network-level access to the instance needed
 
-### 2.4. IAM Permissions
+### 3.4. IAM Permissions
 
 - The **user** needs: `ssm:StartSession`
 - The **instance** (via instance profile) needs: `ssmmessages:CreateControlChannel`, `ssmmessages:CreateDataChannel`, `ssmmessages:OpenControlChannel`, `ssmmessages:OpenDataChannel`
 - The instance profile also needs: `ssm:UpdateInstanceInformation`
 
-## 3. Patch Manager
+## 4. Patch Manager
 
-### 3.1. Purpose
+### 4.1. Purpose
 
 - Automates patching of EC2 instances and on-premises servers
 - Supports: Amazon Linux, Ubuntu, RHEL, SUSE, CentOS, Windows Server (including SQL Server)
 - Uses **patch baselines** to define which patches are approved (by classification, severity, product)
 - Can generate patch compliance reports
 
-### 3.2. Key Concepts
+### 4.2. Key Concepts
 
 | Concept                  | Description                                                           |
 | ------------------------ | --------------------------------------------------------------------- |
@@ -74,7 +108,7 @@
 | **Maintenance window**   | A schedule for when patching can occur                                |
 | **Compliance reporting** | Reports which instances are compliant/non-compliant with the baseline |
 
-### 3.3. Patch Baseline Rules
+### 4.3. Patch Baseline Rules
 
 - Can define: auto-approve patches after X days, approve specific patch classifications (e.g., Critical, Security), reject specific patches
 - **Default baselines**: AWS provides default baselines for each OS (approve all Critical and Security patches)
@@ -82,15 +116,15 @@
 
 **Exam scenario**: A security policy requires all EC2 instances to have security patches applied within 7 days of release → configure **SSM Patch Manager** with a patch baseline that auto-approves security patches after 7 days, and schedule a **maintenance window** to apply them.
 
-## 4. Automation
+## 5. Automation
 
-### 4.1. Purpose
+### 5.1. Purpose
 
 - Run pre-defined or custom **runbooks** (SSM Automation documents) to automate common tasks
 - Used extensively for **incident response** and **remediation** workflows
 - Integrates with EventBridge, Config, and GuardDuty for automated response
 
-### 4.2. Common Automation Documents
+### 5.2. Common Automation Documents
 
 | Document                             | Use Case                              |
 | ------------------------------------ | ------------------------------------- |
@@ -102,7 +136,7 @@
 | `AWS-DisablePublicAccessForS3Bucket` | Remove public S3 access (remediation) |
 | `AWS-UpdateCloudFormationStack`      | Update infrastructure                 |
 
-### 4.3. Automation + Incident Response
+### 5.3. Automation + Incident Response
 
 GuardDuty finding → EventBridge → SSM Automation runbook → Isolate instance
 
@@ -119,47 +153,47 @@ Example flow:
 
 **Exam scenario**: A GuardDuty finding detects a compromised EC2 instance. The security team wants to automatically isolate it and take a forensic snapshot → use **SSM Automation runbook** triggered by EventBridge.
 
-## 5. Run Command
+## 6. Run Command
 
-### 5.1. Purpose
+### 6.1. Purpose
 
 - Run ad-hoc commands or scripts on multiple instances at once
 - No SSH needed — uses the SSM Agent
 - Commands can be targeted by tags, resource groups, or instance IDs
 - Results are returned and logged
 
-### 5.2. Use Cases
+### 6.2. Use Cases
 
 - Run a shell script across a fleet of instances
 - Install a security agent on all instances
 - Check the status of a security configuration
 - Run a compliance check across instances
 
-## 6. State Manager
+## 7. State Manager
 
-### 6.1. Purpose
+### 7.1. Purpose
 
 - Keep EC2 instances in a defined state using **association** rules
 - Ensures instances stay compliant with a desired configuration
 - Can run on a schedule or when the instance is launched
 
-### 6.2. Use Cases
+### 7.2. Use Cases
 
 - Ensure the SSM Agent is always running
 - Ensure a security agent (e.g., CrowdStrike, Trend Micro) is installed and running
 - Ensure a specific software package is installed
 - Ensure a specific configuration file is in place
 
-## 7. Parameter Store
+## 8. Parameter Store
 
-### 7.1. Purpose
+### 8.1. Purpose
 
 - Secure, hierarchical storage for configuration data and secrets
 - Supports: strings, string lists, secure strings (encrypted with KMS)
 - Integrates with EC2, Lambda, ECS, and CloudFormation
 - No additional cost (standard parameters) — advanced and secure string parameters may have costs
 
-### 7.2. Parameter Types
+### 8.2. Parameter Types
 
 | Type             | Description          | Encryption     |
 | ---------------- | -------------------- | -------------- |
@@ -167,14 +201,14 @@ Example flow:
 | **StringList**   | Comma-separated list | No             |
 | **SecureString** | Encrypted value      | KMS (required) |
 
-### 7.3. Parameter Tiers
+### 8.3. Parameter Tiers
 
 | Tier         | Max Size | Cost | Policies                                               |
 | ------------ | -------- | ---- | ------------------------------------------------------ |
 | **Standard** | 4 KB     | Free | No parameter policies                                  |
 | **Advanced** | 8 KB     | Paid | Supports parameter policies (expiration, notification) |
 
-### 7.4. Security Use Cases
+### 8.4. Security Use Cases
 
 - Store database passwords, API keys, and other secrets
 - Reference secrets in CloudFormation without hardcoding
@@ -183,7 +217,7 @@ Example flow:
 
 **Exam scenario**: An application running on EC2 needs to access database credentials without hardcoding them in the source code → store the credentials in **SSM Parameter Store** as a SecureString and retrieve them at runtime.
 
-### 7.5. Parameter Store vs Secrets Manager
+### 8.5. Parameter Store vs Secrets Manager
 
 | Feature                  | Parameter Store                  | Secrets Manager                                   |
 | ------------------------ | -------------------------------- | ------------------------------------------------- |
@@ -196,30 +230,30 @@ Example flow:
 
 **Exam tip**: If the scenario requires **automatic secret rotation**, use Secrets Manager. If the scenario just needs a simple parameter or secret without rotation, Parameter Store is sufficient.
 
-## 8. Inventory
+## 9. Inventory
 
-### 8.1. Purpose
+### 9.1. Purpose
 
 - Collect software inventory, OS configuration, and instance metadata from managed instances
 - Collects: installed applications, OS versions, network configuration, Windows patches, etc.
 - Data is stored in S3 and can be queried via Athena
 
-### 8.2. Security Use Cases
+### 9.2. Security Use Cases
 
 - Discover instances running outdated software
 - Identify instances with missing security agents
 - Audit installed applications for unauthorized software
 - Compliance reporting for software inventory
 
-## 9. Compliance
+## 10. Compliance
 
-### 9.1. Purpose
+### 10.1. Purpose
 
 - Reports patch compliance status for managed instances
 - Shows which instances are compliant/non-compliant with patch baselines
 - Integrates with Inspector (Inspector discovers CVEs, Patch Manager remediates them)
 
-## 10. SSM VPC Endpoints
+## 11. SSM VPC Endpoints
 
 - SSM requires network connectivity between instances and the SSM service
 - Options:
@@ -234,7 +268,7 @@ Required endpoints for Session Manager:
 
 **Exam scenario**: EC2 instances in a private subnet need to be managed by SSM but have no internet access → create **VPC Interface Endpoints** for SSM, SSMMessages, and EC2Messages.
 
-## 11. IAM Roles for SSM
+## 12. IAM Roles for SSM
 
 | Role                                     | Purpose                                                                       |
 | ---------------------------------------- | ----------------------------------------------------------------------------- |
@@ -248,7 +282,7 @@ The managed instance policy includes:
 - `ssmmessages:*` (for Session Manager)
 - `ec2messages:*` (for agent messaging)
 
-## 12. SSM vs Other Services
+## 13. SSM vs Other Services
 
 | Service                  | What It Does                                                   |
 | ------------------------ | -------------------------------------------------------------- |
@@ -256,10 +290,11 @@ The managed instance policy includes:
 | **SSM Patch Manager**    | Automated patching                                             |
 | **SSM Automation**       | Automated runbooks for remediation                             |
 | **SSM Parameter Store**  | Secret and configuration storage                               |
+| **SSM Hybrid Activations** | Register on-premises servers as managed instances            |
 | **Systems Manager**      | Umbrella service for all the above                             |
 | **EC2 Instance Connect** | Temporary SSH key access (different approach — still uses SSH) |
 
-## 13. Exam Tips
+## 14. Exam Tips
 
 1. **Session Manager replaces SSH bastions** — no inbound ports, no SSH keys, no bastion hosts. All sessions are logged to CloudTrail.
 
@@ -290,3 +325,5 @@ The managed instance policy includes:
 14. **IAM policies control access** — granular control over who can start sessions on which instances.
 
 15. **Session logging** should be enabled to CloudWatch Logs or S3 for audit trail and compliance.
+
+16. **Hybrid Activations** register on-premises servers as managed instances without joining a domain. Create an activation code + ID, install SSM Agent, and register — then apply patches and use Session Manager just like EC2 instances.

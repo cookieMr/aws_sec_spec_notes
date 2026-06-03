@@ -224,15 +224,105 @@ Key fields in a VPC Flow Log record:
 
 **Exam scenario**: A company has 50 VPCs across multiple accounts and regions that all need to communicate → use **Transit Gateway** for a hub-and-spoke topology (VPC Peering is not scalable for 50 VPCs).
 
-## 9. AWS Network Firewall
+## 9. VPC Traffic Mirroring
 
 ### 9.1. Purpose
+
+- **VPC Traffic Mirroring** copies network traffic from an ENI (source) to a security appliance (target) for analysis
+- Non-inline — traffic is copied, not redirected; source instances are not impacted
+- The source is any ENI in the VPC; the target is an ENI behind a **Network Load Balancer (NLB)**
+- Use cases: intrusion detection, content inspection, threat monitoring, forensics
+
+### 9.2. Key Concepts
+
+| Concept              | Description                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| **Source**           | An ENI from which traffic is copied (EC2 instance, NLB, etc.)|
+| **Target**           | An ENI behind a NLB that receives the mirrored traffic       |
+| **Filter**           | 5-tuple filter (protocol, source IP/port, destination IP/port) or packet size |
+| **Session**          | Defines the source, target, filter, and VLAN ID              |
+| **Session number**   | Used when multiple sessions target the same NLB (1-32766)    |
+
+### 9.3. Limitations
+
+- Cannot mirror traffic to/from the internet gateway, NAT gateway, or transit gateway
+- Cannot mirror traffic from an ENI that is a **traffic mirror target** (no chaining)
+- Cannot mirror traffic across regions or across VPCs
+- Mirrored traffic is not encrypted by default
+
+**Exam scenario**: A security team wants to send a copy of all traffic from an EC2 instance to a third-party intrusion detection appliance without affecting the instance — use **VPC Traffic Mirroring**.
+
+## 10. Reachability Analyzer
+
+### 10.1. Purpose
+
+- A diagnostics tool in VPC Network Manager that tests network connectivity between two resources
+- Analyzes security groups, NACLs, route tables, and network configurations
+- Returns "Reachable" or "Not Reachable" with a hop-by-hop analysis of the path
+
+### 10.2. Supported Source/Destination Types
+
+- EC2 instances, ALB, NLB, ENI, Internet Gateway, NAT Gateway, Transit Gateway, VPC Peering connections, VPN Gateways, Direct Connect Gateways
+
+### 10.3. Use Cases
+
+- Troubleshoot connectivity failures (which security group rule is blocking traffic?)
+- Validate network changes before deployment
+- Document network paths for compliance
+
+### 10.4. Key Points
+
+- **Read-only** — does not modify any configuration
+- **No setup required** — uses existing VPC configuration
+- Charged per path analysis ($0.10 per analyzed path)
+- Results can be exported for analysis
+
+**Exam scenario**: An administrator needs to determine which security group rule is blocking traffic between two EC2 instances → use **VPC Reachability Analyzer** to test the path and identify the blocking rule.
+
+## 11. EC2 Instance Metadata Service (IMDS)
+
+### 11.1. Purpose
+
+- The Instance Metadata Service (IMDS) provides EC2 instances with access to metadata and credentials
+- Endpoint: `http://169.254.169.254/latest/meta-data/`
+- Used to retrieve: instance ID, AMI ID, network configuration, IAM role credentials, user data
+
+### 11.2. IMDSv1 vs IMDSv2
+
+| Feature                | IMDSv1                         | IMDSv2                                      |
+| ---------------------- | ------------------------------ | ------------------------------------------- |
+| **Access model**       | Request-response (GET directly)| Session-oriented (PUT → token → GET)        |
+| **Token required**     | No                             | Yes (TTL-limited token from PUT request)    |
+| **SSRF mitigation**    | None                           | Token-based — harder to exploit via SSRF    |
+| **Default**            | Older accounts                 | New accounts and instances                  |
+
+### 11.3. IMDSv2 Flow
+
+1. Client sends `PUT http://169.254.169.254/latest/api/token` with a TTL
+2. IMDS returns a session token
+3. Client sends `GET` requests with the token in the `X-aws-ec2-metadata-token` header
+
+### 11.4. Key Security Points
+
+- **IMDSv2 mitigates SSRF attacks** — an attacker who tricks the application into making HTTP requests cannot easily read instance metadata because they do not have the session token
+- **Hop limit** (default: 1) — determines how many network hops the IMDS response can traverse. Set to 1 to prevent containers and intermediate services from accessing IMDS
+- **Require IMDSv2**: Set `MetadataOptions.HttpTokens` to `required` on the instance
+- **Disable IMDS**: Set `HttpPutResponseHopLimit` to `0` or block the metadata IP address with firewall rules
+- IAM role credentials from IMDS are automatically refreshed by the AWS SDKs
+
+**Exam scenario**: A company wants to protect EC2 instances against SSRF attacks that could steal instance credentials from the metadata service → **enable IMDSv2** by setting `HttpTokens: required` on the instance metadata options.
+
+**Exam scenario**: An application running in a Docker container on EC2 needs access to instance metadata but the security team wants to prevent the container from accessing it → set the **hop limit to 1** so IMDS responses cannot be forwarded to containers.
+
+## 12. AWS Network Firewall
+
+### 12.1. Purpose
 
 - A managed stateful firewall service for VPCs
 - Inspects traffic: VPC-to-VPC, VPC-to-internet, internet-to-VPC, Direct Connect, VPN
 - Supports: stateful inspection, domain filtering, intrusion prevention (Suricata-based), threat intelligence
 
-### 9.2. Key Features
+### 12.2. Key Features
 
 - **Stateful rules** (unlike NACLs which are stateless)
 - **Domain filtering**: Allow/block traffic to specific domains (FQBNs)
@@ -240,7 +330,7 @@ Key fields in a VPC Flow Log record:
 - **Intrusion prevention**: Suricata-compatible rules for threat detection
 - **TLS inspection**: Decrypt and inspect TLS traffic (with appropriate certificates)
 
-### 9.3. Network Firewall vs Security Groups vs NACLs
+### 12.3. Network Firewall vs Security Groups vs NACLs
 
 | Layer                | Scope    | State     | Complexity |
 | -------------------- | -------- | --------- | ---------- |
@@ -248,32 +338,32 @@ Key fields in a VPC Flow Log record:
 | **NACLs**            | Subnet   | Stateless | Medium     |
 | **Network Firewall** | VPC      | Stateful  | Advanced   |
 
-### 9.4. Exam Scenarios
+### 12.4. Exam Scenarios
 
 - **Domain filtering**: Block outbound traffic to known-bad domains or allow only approved domains
 - **Threat prevention**: Suricata-based IPS rules to detect and block C2 traffic
 - **Inbound filtering**: Advanced traffic inspection beyond security groups and NACLs
 
-## 10. Subnet Types and Traffic Flow
+## 13. Subnet Types and Traffic Flow
 
-### 10.1. Public Subnet
+### 13.1. Public Subnet
 
 - Route table has a route to an Internet Gateway (IGW)
 - Instances can have public IPs (direct internet access)
 - Resources need security group rules to allow inbound internet traffic
 
-### 10.2. Private Subnet
+### 13.2. Private Subnet
 
 - No direct route to an IGW
 - Outbound internet via **NAT Gateway** (in a public subnet)
 - Inbound from internet only via **ALB/NLB in a public subnet** or **VPN/Direct Connect**
 
-### 10.3. VPN-Only Subnet
+### 13.3. VPN-Only Subnet
 
 - Route table routes traffic through a **Virtual Private Gateway** (VPG)
 - Used for hybrid cloud extensions of on-premises networks
 
-## 11. Encryption in Transit
+## 14. Encryption in Transit
 
 | Scenario                 | Solution                                                                |
 | ------------------------ | ----------------------------------------------------------------------- |
@@ -283,7 +373,7 @@ Key fields in a VPC Flow Log record:
 | VPN to on-premises       | IPsec tunnels                                                           |
 | Direct Connect           | No encryption by default (optionally add VPN over DX for encryption)    |
 
-## 12. Security Best Practices
+## 15. Security Best Practices
 
 - **Use security groups as the primary firewall** — they are simpler and more flexible than NACLs
 - **Use NACLs as a secondary layer** — add explicit deny for known-bad IPs or broad subnet-level rules
@@ -297,7 +387,7 @@ Key fields in a VPC Flow Log record:
 - **Monitor security group and NACL changes** via CloudTrail
 - **Limit SSH/RDP access** to a bastion host or VPN — never expose directly to the internet
 
-## 13. Limits and Quotas
+## 16. Limits and Quotas
 
 | Resource                        | Limit                            |
 | ------------------------------- | -------------------------------- |
@@ -310,7 +400,7 @@ Key fields in a VPC Flow Log record:
 | Gateway endpoints per VPC       | 255                              |
 | Interface endpoints per VPC     | 255                              |
 
-## 14. Exam Tips
+## 17. Exam Tips
 
 1. **Security groups are stateful** — return traffic is automatically allowed. **NACLs are stateless** — both inbound AND outbound rules must be explicitly set for traffic to flow.
 
@@ -341,3 +431,9 @@ Key fields in a VPC Flow Log record:
 14. **Default VPC**: Every new account gets a default VPC in each region with a public subnet, IGW, and default security group. For production, create custom VPCs.
 
 15. **Overlapping CIDRs**: Cannot be used with VPC Peering or VPN connections. Use distinct CIDR ranges for each VPC.
+
+16. **VPC Traffic Mirroring**: Copies traffic from an ENI to a security appliance (via NLB). Non-inline — does not impact source instances. Cannot mirror IGW/NAT/TGW traffic.
+
+17. **Reachability Analyzer**: A read-only diagnostic tool that tests connectivity between two resources and identifies blocking rules (SGs, NACLs, route tables). Use it when you need to find which rule is blocking traffic.
+
+18. **IMDSv2**: Uses a session token (PUT → token → GET) to mitigate SSRF attacks. Set `HttpTokens: required` to enforce. **Hop limit** (default 1) prevents container breakouts from accessing instance metadata.
